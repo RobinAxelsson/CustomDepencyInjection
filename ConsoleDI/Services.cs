@@ -31,7 +31,7 @@ namespace ConsoleDI
         }
         public void Print()
         {
-            System.Diagnostics.Debug.WriteLine("Hello World : " + _message.Message());
+            Console.WriteLine("Hello World : " + _message.Message());
         }
     }
 

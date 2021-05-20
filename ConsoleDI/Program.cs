@@ -12,12 +12,10 @@ namespace ConsoleDI
     {
         public static void Main(string[] args)
         {
-            var ctorParams = typeof(ServiceConsumer).GetConstructors()
-                .Select(x => x.GetParameters());
             var container = new DependencyContainer();
-            container.AddDependency<HelloService>();
-            container.AddDependency<ServiceConsumer>();
-            container.AddDependency<MessageService>();
+            container.AddTransient<HelloService>();
+            container.AddTransient<ServiceConsumer>();
+            container.AddSingleton<MessageService>();
 
             var resolver = new DependencyResolver(container);
             var service1 = resolver.GetService<ServiceConsumer>();
@@ -27,13 +25,26 @@ namespace ConsoleDI
             service1.Print();
             service2.Print();
             service3.Print();
-
+            Console.ReadLine();
         }
     }
     public class Dependency
     {
+        public Dependency(Type t, DependencyLifetime l)
+        {
+            Type = t;
+            Lifetime = l;
+        }
         public Type Type { get; set; }
+
+        public void AddImplementation(object obj)
+        {
+            Implementation = obj;
+            IsImplemented = true;
+        }
         public DependencyLifetime Lifetime { get; set; }
+        public object Implementation { get; private set; }
+        public bool IsImplemented { get; set; }
     }
     public class DependencyResolver
     {
@@ -46,7 +57,8 @@ namespace ConsoleDI
         private object GetService(Type type)
         {
             var dependency = _container.GetDependency(type);
-            var constructor = dependency.GetConstructors().Single();
+
+            var constructor = dependency.Type.GetConstructors().Single();
             var parameters = constructor.GetParameters();
             var parameterImplemenatations = new object[parameters.Length];
 
@@ -56,24 +68,57 @@ namespace ConsoleDI
                 {
                     parameterImplemenatations[i] = GetService(parameters[i].ParameterType);
                 }
-
-                return Activator.CreateInstance(dependency, parameterImplemenatations);
+                return CreateImplementation(dependency, t => Activator.CreateInstance(t, parameterImplemenatations));
             }
 
-            return Activator.CreateInstance(dependency);
+            return CreateImplementation(dependency, t => Activator.CreateInstance(t));
+        }
+
+        public object CreateImplementation(Dependency dependency, Func<Type, object> factory)
+        {
+            if (dependency.IsImplemented)
+            {
+                return dependency.Implementation;
+            }
+
+            var implementation = factory(dependency.Type);
+
+            if (dependency.Lifetime == DependencyLifetime.Singleton)
+            {
+                dependency.AddImplementation(implementation);
+            }
+
+            return implementation;
         }
 
         public T GetService<T>()
         {
-            return (T) GetService(typeof(T));
+            return (T)GetService(typeof(T));
         }
     }
     public class DependencyContainer
     {
-        private readonly List<Type> _dependencies = new();
-        public void AddDependency(Type type) => _dependencies.Add(type);
-        public void AddDependency<T>() => _dependencies.Add(typeof(T));
-        public Type GetDependency(Type type) => _dependencies.First(x => x.Name == type.Name);
-    } 
-    
+        private readonly List<Dependency> _dependencies;
+        public DependencyContainer()
+        {
+            _dependencies = new();
+        }
+        public void AddSingleton<T>()
+        {
+            _dependencies.Add(new Dependency(typeof(T), DependencyLifetime.Singleton));
+        }
+
+        public void AddTransient<T>()
+        {
+            _dependencies.Add(new Dependency(typeof(T), DependencyLifetime.Transient));
+        }
+
+        public Dependency GetDependency(Type type)
+        {
+            var dep = _dependencies;
+            return _dependencies.First(x => x.Type.Name == type.Name);
+        }
+
+    }
+
 }
