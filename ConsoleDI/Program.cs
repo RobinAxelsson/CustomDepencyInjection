@@ -12,22 +12,24 @@ namespace ConsoleDI
     {
         public static void Main(string[] args)
         {
+            var service1 = BuildServiceContainer();
+            var service2 = BuildServiceContainer();
+
+            service1.Print();
+            service2.Print();
+        }
+
+        public static ServiceConsumer BuildServiceContainer()
+        {
             var container = new DependencyContainer();
             container.AddTransient<HelloService>();
             container.AddTransient<ServiceConsumer>();
             container.AddSingleton<MessageService>();
-
             var resolver = new DependencyResolver(container);
-            var service1 = resolver.GetService<ServiceConsumer>();
-            var service2 = resolver.GetService<ServiceConsumer>();
-            var service3 = resolver.GetService<ServiceConsumer>();
-
-            service1.Print();
-            service2.Print();
-            service3.Print();
-            Console.ReadLine();
+            return resolver.GetService<ServiceConsumer>();
         }
     }
+
     public class Dependency
     {
         public Dependency(Type t, DependencyLifetime l)
